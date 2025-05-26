@@ -1,0 +1,24 @@
+identifier: stm32h723zgt6_hub
+name: ST Nucleo H723ZG
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+ram: 372
+flash: 1024
+supported:
+  - arduino_gpio
+  - arduino_i2c
+  - arduino_spi
+  - uart
+  - gpio
+  - counter
+  - i2c
+  - pwm
+  - spi
+  - netif:eth
+  - usb_device
+  - rtc
+  - can
+vendor: st
