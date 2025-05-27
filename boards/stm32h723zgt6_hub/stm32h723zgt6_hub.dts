@@ -7,14 +7,10 @@
 #include "stm32h723Xg.dtsi"
 #include "stm32h723zgtx-pinctrl.dtsi"
 #include <zephyr/dt-bindings/input/input-event-codes.h>
-
-/*
- * WARNING:
- * JP6 and SB72 must be ON when using Ethernet.
- */
+#include <zephyr/dt-bindings/sensor/icm42688.h>
 
 / {
-	model = "STMicroelectronics STM32H723ZG-NUCLEO board";
+	model = "DDT STM32H723ZG-HUB board";
 	compatible = "st,stm32h723zg-nucleo";
 
 	chosen {
@@ -24,6 +20,9 @@
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,canbus = &fdcan1;
+		zephyr,spi1 = &spi1;
+		zephyr,spi3 = &spi3;
+		zephyr,spi4 = &spi4;
 	};
 
 	leds: leds {
@@ -36,6 +35,24 @@
 			gpios = <&gpioe 1 GPIO_ACTIVE_HIGH>;
 			label = "User LD2";
 		};
+	};
+
+	gpio_keys: gpio_keys {
+		compatible = "gpio-keys";
+
+		// ts3usb3000mrser: SEL-gpios
+		// https://www.ti.com/cn/lit/ds/symlink/ts3usb3000.pdf?ts=1748229945068&ref_url=https%253A%252F%252Flist.szlcsc.com%252Fcatalog%252F618.html%253Fspm%253Dsc.ols.ca5.1-13___sc.gb.hd.dd%2526lcsc_vid%253DFgRdVFEDE1ZWUFxUFgJeVAYFRFQLXgVXQFJbBQVVR1MxVlNSQFheUlNfT1lfUTsOAxUeFF5JWA4cAwEUWRIUCwcVFE8NCAlJGgQDBQEUWA4cAwEUWA0HFBBIHxUDCw%253D%253D
+		// switch fdcan2-rx/ulpi-d7
+		switch_button: button {
+			label = "switch";
+			gpios = <&gpiog 11 GPIO_ACTIVE_HIGH>;
+			zephyr,code = <INPUT_KEY_0>;
+		};
+	};
+
+	otghs_ulpi_phy: otghs_ulpis_phy {
+		compatible = "usb-ulpi-phy";
+		#phy-cells = <0>;
 	};
 
 	aliases {
@@ -73,10 +90,10 @@
 };
 
 &pll2 {
-	div-m = <32>;
-	mul-n = <129>;
+	div-m = <1>;
+	mul-n = <12>;
 	div-p = <2>;
-	div-q = <2>;
+	div-q = <1>;
 	div-r = <2>;
 	clocks = <&clk_hse>;
 	status = "okay";
@@ -93,51 +110,6 @@
 	d3ppre = <2>;  /* APB4: 137.5 MHz */
 };
 
-&usart3 {
-	pinctrl-0 = <&usart3_tx_pd8 &usart3_rx_pd9>;
-	pinctrl-names = "default";
-	current-speed = <115200>;
-	status = "okay";
-};
-
-&usart2 {
-	pinctrl-0 = <&usart2_tx_pd5 &usart2_rx_pd6>;
-	pinctrl-names = "default";
-	current-speed = <115200>;
-	status = "okay";
-};
-
-&rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB4 0x00010000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
-	status = "okay";
-};
-
-&spi1 {
-	status = "okay";
-	pinctrl-0 = <&spi1_sck_pa5 &spi1_miso_pa6 &spi1_mosi_pb5>;
-	pinctrl-names = "default";
-	cs-gpios = <&gpiod 14 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-};
-
-&i2c1 {
-	pinctrl-0 = <&i2c1_scl_pb8 &i2c1_sda_pb9>;
-	pinctrl-names = "default";
-	status = "okay";
-	clock-frequency = <I2C_BITRATE_FAST>;
-};
-
-&timers12 {
-	st,prescaler = <10000>;
-	status = "okay";
-
-	pwm12: pwm {
-		status = "okay";
-		pinctrl-0 = <&tim12_ch1_pb14>;
-		pinctrl-names = "default";
-	};
-};
-
 &mac {
 	status = "okay";
 	pinctrl-0 = <&eth_ref_clk_pa1
@@ -146,7 +118,7 @@
 		     &eth_rxd1_pc5
 		     &eth_tx_en_pg11
 		     &eth_txd0_pg13
-		     &eth_txd1_pb13>;
+		     &eth_txd1_pg12>;
 	pinctrl-names = "default";
 	phy-connection-type = "rmii";
 	phy-handle = <&eth_phy>;
@@ -178,6 +150,150 @@ zephyr_udc0: &usbotg_hs {
 	pinctrl-names = "default";
 	clocks = <&rcc STM32_CLOCK_BUS_APB1_2 0x00000100>,
 		 <&rcc STM32_SRC_PLL2_Q FDCAN_SEL(2)>;
+	status = "okay";
+};
+
+&dma1 {
+	status = "okay";
+};
+
+&dma2 {
+	status = "okay";
+};
+
+&bdma1 {
+	status = "okay";
+};
+
+//! Please do not comment the device description of usart
+&usart3 {
+	pinctrl-0 = <&usart3_tx_pd8 &usart3_rx_pd9>;
+	pinctrl-names = "default";
+	current-speed = <115200>;
+	status = "okay";
+};
+
+// to MMC5983MA
+&spi1{
+	dmas = <&dma1 0 4 STM32_DMA_PERIPH_TX STM32_DMA_FIFO_FULL>,
+		<&dma1 0 5 STM32_DMA_PERIPH_RX STM32_DMA_FIFO_FULL>;
+	dma-names = "tx", "rx";
+
+	status = "okay";
+	pinctrl-0 = <&spi1_miso_pg9 &spi1_mosi_pd7 &spi1_sck_pb3>;
+	pinctrl-names = "default";
+
+	cs-gpios = <&gpiog 10 GPIO_ACTIVE_LOW>; // MMC5983MA CS/NSS
+
+	// drive mmc5983ma
+};
+
+// to ICM42688
+&spi3 {
+	dmas = <&dma1 0 2 STM32_DMA_PERIPH_TX STM32_DMA_FIFO_FULL>,
+		<&dma1 0 3 STM32_DMA_PERIPH_RX STM32_DMA_FIFO_FULL>;
+	dma-names = "tx", "rx";
+
+	status = "okay";
+	pinctrl-0 = <&spi3_miso_pc11 &spi3_mosi_pc12 &spi3_sck_pc10>;
+	pinctrl-names = "default";
+
+	cs-gpios = <&gpioa 15 GPIO_ACTIVE_LOW>; // ICM42688 CS/NSS
+
+	icm42688_1: icm42688p1@0 {
+		compatible = "invensense,icm42688";
+		reg = <0>;
+
+		//! PF3 and PD0 are simultaneously used for the int-gpios and is
+		//! attempted to be used to implement hardware real-time.
+		//Todo: Add PD0
+		int-gpios = <&gpiof 3 GPIO_ACTIVE_HIGH>; // PF3 and PD0
+		spi-max-frequency = <24000000>;
+		accel-pwr-mode = <ICM42688_DT_ACCEL_LN>;
+		accel-odr = <ICM42688_DT_ACCEL_ODR_1000>;
+		accel-fs = <ICM42688_DT_ACCEL_FS_16>;
+		gyro-pwr-mode = <ICM42688_DT_GYRO_LN>;
+		gyro-odr = <ICM42688_DT_GYRO_ODR_1000>;
+		gyro-fs = <ICM42688_DT_GYRO_FS_2000>;
+	};
+};
+
+// to BMI088
+&spi4 {
+	dmas = <&dma1 0 0 STM32_DMA_PERIPH_TX STM32_DMA_FIFO_FULL>,
+		<&dma1 0 1 STM32_DMA_PERIPH_RX STM32_DMA_FIFO_FULL>;
+	dma-names = "tx", "rx";
+
+	status = "okay";
+	pinctrl-0 = <&spi4_miso_pe5 &spi4_mosi_pe6 &spi4_sck_pe2>;
+	pinctrl-names = "default";
+
+	cs-gpios = <&gpioe 4 GPIO_ACTIVE_LOW>, // BMI088 CS1
+		<&gpiof 6 GPIO_ACTIVE_LOW>; // BMI088 CS2
+
+	bmi08x_accel: bmi08x@0 {
+		compatible = "bosch,bmi08x-accel";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		int-gpios = <&gpiof 0 GPIO_ACTIVE_HIGH>; // BMI08X_INT1
+		int1-map-io = <0x01>; // BMI08X_REG_ACCEL_INT1_MAP(0x56) BMI08X_ACCEL_INTA_ENABLE(0x01)
+		int2-map-io = <0x00>; // BMI08X_REG_ACCEL_INT2_MAP(0x57) BMI08X_ACCEL_INTA_DISABLE(0x00)
+		int1-conf-io = <0x0A>; // OUTPUT[3] ACTIVE_HIGH[1]
+		int2-conf-io = <0x13>; // INPUT[4] ACTIVE_HIGH[1] INT_EDGE[0]
+		accel-hz = "800";
+		accel-fs = <24>;
+		data-sync = <&bmi08x_gyro>;
+		status = "okay";
+	};
+
+	bmi08x_gyro: bmi08x@1 {
+		compatible = "bosch,bmi08x-gyro";
+		reg = <1>;
+		spi-max-frequency = <10000000>;
+		int-gpios = <&gpiof 1 GPIO_ACTIVE_HIGH>; // BMI08X_INT3
+		int3-4-map-io = <0x81>;  // INT4/INT3 DATA_READY
+		int3-4-conf-io = <0x05>; // INT4/INT3 OUTPUT PUSH_PULL ACTIVE_HIGH
+		gyro-hz = "1000_116";
+		gyro-fs = <500>; // 500 deg/s, max 8.72 rad/s
+		data-sync;
+		status = "okay";
+	};
+};
+
+zephyr_udc0: &usbotg_hs {
+	pinctrl-0 = <&usb_otg_hs_ulpi_ck_pa5
+			&usb_otg_hs_ulpi_d0_pa3
+			&usb_otg_hs_ulpi_d1_pb0
+			&usb_otg_hs_ulpi_d2_pb1
+			&usb_otg_hs_ulpi_d3_pb10
+			&usb_otg_hs_ulpi_d4_pb11
+			&usb_otg_hs_ulpi_d5_pb12
+			&usb_otg_hs_ulpi_d6_pb13
+			&usb_otg_hs_ulpi_d7_pb5
+			&usb_otg_hs_ulpi_stp_pc0
+			&usb_otg_hs_ulpi_dir_pc2_c
+			&usb_otg_hs_ulpi_nxt_pc3_c>;
+	pinctrl-names = "default";
+	maximum-speed = "high-speed";
+	phys = <&otghs_ulpi_phy>;
+	status = "okay";
+};
+
+// reference "stm32h7_clock.h" on zephyr, also reference “./doc/MCO参考.png”
+&mco1 {
+	clocks = <&rcc STM32_SRC_PLL1_Q MCO1_SEL(3)>; // pll1_q is 275 Mhz, MCO1_SEL(3) is 011b (3d)
+	prescaler = <MCO1_PRE(MCO_PRE_DIV_11)>; // 275/11 = 25 MHz
+	pinctrl-0 = <&rcc_mco_1_pa8>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+// reference "stm32h7_clock.h" on zephyr, also reference “./doc/MCO参考.png”
+&mco2 {
+	clocks = <&rcc STM32_SRC_PLL2_P MCO2_SEL(1)>;  // pll2_p is 96 Mhz, MCO2_SEL(1) is 001b (1d)
+	prescaler = <MCO2_PRE(MCO_PRE_DIV_4)>; // 96/4 = 24 MHz
+	pinctrl-0 = <&rcc_mco_2_pc9>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 

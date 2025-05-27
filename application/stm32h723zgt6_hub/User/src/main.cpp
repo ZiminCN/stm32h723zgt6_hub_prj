@@ -22,6 +22,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/settings/settings.h>
 
+
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 int main(void) {
